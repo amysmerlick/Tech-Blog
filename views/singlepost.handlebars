@@ -23,13 +23,13 @@
 </form>
 {{/if}}
 
-
+<div class="box has-background-info-dark has-text-white is-size-5">Review Comments
 {{#each post.comments as |comment|}}
 
-<div>{{comment.content}}</div>
+<div class="box">{{comment.content}}</div>
 
 {{/each}}
-
+</div>
 
 {{#if loggedIn}}
 <script src="/javascript/comment.js"></script>

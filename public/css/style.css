@@ -1,4 +1,4 @@
-* {
+/* * {
     box-sizing: border-box;
   }
   
@@ -161,4 +161,4 @@
   .rows{
       display:flex;
       flex-direction: column;
-  }
+  } */
