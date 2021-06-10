@@ -70,7 +70,7 @@ router.post('/', (req, res) => {
         req.session.github = dbUserData.github;
         req.session.loggedIn = true;
     
-        res.json(dbUserData);
+        res.redirect('/dashboard');
       });
     })
     .catch(err => {

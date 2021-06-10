@@ -1,15 +1,16 @@
 const router = require('express').Router();
-const { Post, User } = require('../models');
+const { Post, User, Comment } = require('../models');
 const withAuth = require('../utils/auth');
 
 router.get('/', async (req, res) => {
+  console.log("Root route")
   try {
     // Get all projects and JOIN with user data
     const postData = await Post.findAll({
       include: [
         {
           model: User,
-          attributes: ['name'],
+          attributes: ['username'],
         },
         {
           model: Comment,
@@ -20,17 +21,62 @@ router.get('/', async (req, res) => {
 
     // Serialize data so the template can read it
     const posts = postData.map((post) => post.get({ plain: true }));
-
+    console.log(posts)
     // Pass serialized data and session flag into template
-    res.render('homepage', { 
-      posts, 
-      logged_in: req.session.logged_in 
+    res.render('homepage', {
+      loggedIn:req.session.loggedIn,
+      posts: posts
     });
   } catch (err) {
+    console.log(err)
     res.status(500).json(err);
   }
 });
 
+router.get('/dashboard', async (req, res) => {
+  console.log(req.session)
+  try {
+    // Get all projects and JOIN with user data
+    const postData = await Post.findAll({
+      where: {
+        user_id: req.session.user_id
+      },
+      include: [
+        {
+          model: User,
+          attributes: ['username'],
+        },
+        {
+          model: Comment,
+          attributes: ['content']
+        }
+      ],
+    });
+
+    // Serialize data so the template can read it
+    const posts = postData.map((post) => post.get({ plain: true }));
+  
+    // Pass serialized data and session flag into template
+    res.render('dashboard', {
+      loggedIn: req.session.loggedIn,
+      posts: posts
+    });
+  } catch (err) {
+    console.log(err)
+    res.status(500).json(err);
+  }
+ 
+})
+
+router.get('/dashboard/create', (req, res) => {
+
+  res.render('newpost', {
+    loggedIn: (req.session.user_id !== undefined) ? true : false
+  })
+
+})
+
+/*
 router.get('/post/:id', async (req, res) => {
   try {
     const postData = await Post.findByPk(req.params.id, {
@@ -50,11 +96,109 @@ router.get('/post/:id', async (req, res) => {
 
     res.render('post', {
       ...post,
-      logged_in: req.session.logged_in
+      logged_in: req.session.loggedIn
     });
   } catch (err) {
     res.status(500).json(err);
   }
+});
+*/
+
+router.get('/post/edit/:id', withAuth, (req, res) => {
+
+  
+  Post.findOne({
+    where: {
+      id: req.params.id
+    },
+    attributes: [
+      'id',
+      'title',
+      'date_created',
+      'content'
+    ],
+    include: [
+      {
+        model: Comment,
+        attributes: ['id', 'content', 'post_id', 'user_id', 'date_created'],
+        include: {
+          model: User,
+          attributes: ['username', 'twitter', 'github']
+        }
+      },
+      {
+        model: User,
+        attributes: ['username', 'twitter', 'github']
+      }
+    ]
+  })
+    .then(dbPostData => {
+      if (!dbPostData) {
+        res.status(404).json({ message: 'No post found with this id' });
+        return;
+      }
+
+      // serialize the data
+      const post = dbPostData.get({ plain: true });
+
+      res.render('editpost', {
+          ...post,
+          loggedIn: req.session.loggedIn
+          });
+    })
+    .catch(err => {
+      console.log(err);
+      res.status(500).json(err);
+    });
+
+    
+});
+
+router.get('/post/:id', withAuth, (req, res) => {
+  console.log("SINGLE POST")
+  Post.findOne({
+    where: {
+      id: req.params.id
+    },
+    attributes: [
+      'id',
+      'title',
+      'date_created',
+      'content'
+    ],
+    include: [
+      {
+        model: Comment,
+        attributes: ['id', 'content', 'post_id', 'user_id', 'date_created'],
+        include: {
+          model: User,
+          attributes: ['username', 'twitter', 'github']
+        }
+      },
+      {
+        model: User,
+        attributes: ['username', 'twitter', 'github']
+      }
+    ]
+  })
+    .then(dbPostData => {
+      if (!dbPostData) {
+        res.status(404).json({ message: 'No post found with this id' });
+        return;
+      }
+
+      // serialize the data
+      const post = dbPostData.get({ plain: true });
+      console.log(post)
+      res.render('singlepost', {
+         post: post,
+          loggedIn: true
+          });
+    })
+    .catch(err => {
+      console.log(err);
+      res.status(500).json(err);
+    });
 });
 
 // Use withAuth middleware to prevent access to route
@@ -62,15 +206,15 @@ router.get('/profile', withAuth, async (req, res) => {
   try {
     // Find the logged in user based on the session ID
     const userData = await User.findByPk(req.session.user_id, {
-      attributes: { exclude: ['password'] },
-      include: [{ model: Project }],
+      attributes: { exclude: ['password'] }
+ 
     });
 
     const user = userData.get({ plain: true });
 
     res.render('profile', {
       ...user,
-      logged_in: true
+      loggedIn: req.session.loggedIn
     });
   } catch (err) {
     res.status(500).json(err);
@@ -79,12 +223,18 @@ router.get('/profile', withAuth, async (req, res) => {
 
 router.get('/login', (req, res) => {
   // If the user is already logged in, redirect the request to another route
-  if (req.session.logged_in) {
+  if (req.session.loggedIn) {
     res.redirect('/profile');
     return;
   }
 
   res.render('login');
 });
+
+router.get('/signup', (req, res) => {
+
+  res.render('signup')
+
+})
 
 module.exports = router;
